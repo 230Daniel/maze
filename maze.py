@@ -1,3 +1,17 @@
+from tile import Tile
+
+
+def get_opposite_direction(direction):
+    if direction == "up":
+        return "down"
+    elif direction == "down":
+        return "up"
+    elif direction == "left":
+        return "right"
+    elif direction == "right":
+        return "left"
+
+
 class Maze:
     def __init__(self, path):
 
@@ -9,13 +23,14 @@ class Maze:
         for line in csv.split("\n"):
             maze_line = []
             for tile in line.split(","):
-                maze_line.append(int(tile))
+                maze_line.append(Tile(int(tile)))
             self.maze.append(maze_line)
 
         self.player = [0, 0]
-        self.player_facing = "r"
+        self.maze[0][0].set_is_visited(True)
+        self.maze[0][0].set_is_path(True)
 
-    def display(self):
+    def display(self, mood="happy"):
 
         output = "██" * (len(self.maze[0]) + 2) + "\n"
 
@@ -26,123 +41,82 @@ class Maze:
                 tile = self.maze[y][x]
 
                 if self.player == [x, y]:
-                    line_display += ":)"
-                elif tile == 0:
-                    line_display += "  "
-                elif tile == 1:
-                    line_display += "██"
-                elif tile == 2:
+                    if mood == "sad":
+                        line_display += ":("
+                    elif mood == "overjoyed":
+                        line_display += ":D"
+                    else:
+                        line_display += ":)"
+                elif tile.is_path:
                     line_display += "░░"
+                elif tile.is_visited:
+                    line_display += "▓▓"
+                elif tile.is_empty():
+                    line_display += "  "
+                elif tile.is_wall():
+                    line_display += "██"
+                elif tile.is_goal():
+                    line_display += "!!"
 
             output += "██" + line_display + "██\n"
 
         output += "██" * (len(self.maze[0]) + 2)
         return output
 
-    def up(self):
-        new_x = self.player[0]
-        new_y = self.player[1] - 1
-        return self.__move(new_x, new_y)
+    def look(self, direction):
+        new_x, new_y = self.__get_new_coordinates(direction)
 
-    def down(self):
-        new_x = self.player[0]
-        new_y = self.player[1] + 1
-        return self.__move(new_x, new_y)
+        if new_x is None or new_y is None:
+            return None
 
-    def left(self):
-        new_x = self.player[0] - 1
-        new_y = self.player[1]
-        return self.__move(new_x, new_y)
+        return self.maze[new_y][new_x]
 
-    def right(self):
-        new_x = self.player[0] + 1
-        new_y = self.player[1]
-        return self.__move(new_x, new_y)
+    def move(self, direction):
+        new_x, new_y = self.__get_new_coordinates(direction)
 
-    def __move(self, new_x, new_y):
-        if self.maze[new_y][new_x] == 1:
+        if new_x is None or new_y is None:
             return False
 
-        self.player = [new_x, new_y]
+        destination = self.maze[new_y][new_x]
+        if not destination.is_wall():
+            self.player = [new_x, new_y]
+            destination.set_is_visited(True)
+            destination.set_is_path(True)
+            return True
 
-        if self.maze[new_y][new_x] == 2:
-            print("win!!")
+        return False
 
-        return True
+    def backtrack(self, direction):
+        opposite_direction = get_opposite_direction(direction)
 
-    def forwards(self):
-        if self.player_facing == "u":
-            return self.up()
-        elif self.player_facing == "d":
-            return self.down()
-        elif self.player_facing == "l":
-            return self.left()
-        elif self.player_facing == "r":
-            return self.right()
+        new_x, new_y = self.__get_new_coordinates(opposite_direction)
 
-    def turn_left(self):
-        if self.player_facing == "u":
-            self.player_facing = "l"
-        elif self.player_facing == "l":
-            self.player_facing = "d"
-        elif self.player_facing == "d":
-            self.player_facing = "r"
-        elif self.player_facing == "r":
-            self.player_facing = "u"
+        origin = self.maze[self.player[1]][self.player[0]]
+        destination = self.maze[new_y][new_x]
+        if not destination.is_wall():
+            self.player = [new_x, new_y]
+            origin.set_is_path(False)
+            return True
 
-    def turn_right(self):
-        if self.player_facing == "u":
-            self.player_facing = "r"
-        elif self.player_facing == "r":
-            self.player_facing = "d"
-        elif self.player_facing == "d":
-            self.player_facing = "l"
-        elif self.player_facing == "l":
-            self.player_facing = "u"
+        return False
 
-    def get_tile_left(self):
-        if self.player_facing == "u":
-            new_x = self.player[0] - 1
-            new_y = self.player[1]
-        elif self.player_facing == "r":
-            new_x = self.player[0]
-            new_y = self.player[1] - 1
-        elif self.player_facing == "d":
-            new_x = self.player[0] + 1
-            new_y = self.player[1]
-        elif self.player_facing == "l":
-            new_x = self.player[0]
-            new_y = self.player[1] + 1
-        else:
-            new_x = self.player[0]
-            new_y = self.player[1]
+    def __get_new_coordinates(self, direction):
+        new_x = self.player[0]
+        new_y = self.player[1]
 
-        if new_x < 0 or new_y < 0 or new_x >= len(self.maze[0]) or new_y >= len(self.maze):
-            return 1
+        if direction == "up":
+            new_y -= 1
+        elif direction == "down":
+            new_y += 1
+        elif direction == "left":
+            new_x -= 1
+        elif direction == "right":
+            new_x += 1
 
-        return self.maze[new_y][new_x]
+        if new_x < 0 or new_x >= len(self.maze[0]) or new_y < 0 or new_y >= len(self.maze):
+            return None, None
 
-    def get_tile_right(self):
-        if self.player_facing == "u":
-            new_x = self.player[0] + 1
-            new_y = self.player[1]
-        elif self.player_facing == "r":
-            new_x = self.player[0]
-            new_y = self.player[1] + 1
-        elif self.player_facing == "d":
-            new_x = self.player[0] - 1
-            new_y = self.player[1]
-        elif self.player_facing == "l":
-            new_x = self.player[0]
-            new_y = self.player[1] - 1
-        else:
-            new_x = self.player[0]
-            new_y = self.player[1]
-
-        if new_x < 0 or new_y < 0 or new_x >= len(self.maze[0]) or new_y >= len(self.maze):
-            return 1
-
-        return self.maze[new_y][new_x]
+        return new_x, new_y
 
     def has_won(self):
-        return self.maze[self.player[1]][self.player[0]] == 2
+        return self.maze[self.player[1]][self.player[0]].is_goal()
