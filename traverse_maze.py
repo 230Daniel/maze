@@ -1,5 +1,5 @@
-from time import sleep
 import os
+from time import sleep
 
 
 def clear_and_print_maze(maze, mood="happy"):
@@ -9,36 +9,29 @@ def clear_and_print_maze(maze, mood="happy"):
 
 
 def traverse_maze(maze):
-    clear_and_print_maze(maze)
-    sleep(0.05)
+    if maze.get_player_tile().get_direction_number() is None:
+        clear_and_print_maze(maze, "sad")
+        return False
 
-    walkable_directions = []
-    walkable_tiles = []
+    while not maze.get_has_won():
+        clear_and_print_maze(maze)
+        sleep(0.05)
 
-    for direction in ["up", "down", "left", "right"]:
-        tile = maze.look(direction)
-        if tile and tile.is_walkable() and not tile.is_visited:
-            walkable_directions.append(direction)
-            walkable_tiles.append(tile)
+        adjacent_tiles = list(
+            filter(lambda tile: tile.get_direction_number() is not None, maze.get_player_adjacent_tiles()))
+        best_tile = min(adjacent_tiles, key=lambda tile: tile.get_direction_number())
 
-    for i in range(len(walkable_directions)):
-        direction = walkable_directions[i]
-        tile = walkable_tiles[i]
+        old_x, old_y = maze.get_player_coordinates()
+        new_x, new_y = best_tile.get_coordinates()
 
-        if tile.is_visited:
-            continue
+        if new_y < old_y:
+            maze.move("up")
+        elif new_y > old_y:
+            maze.move("down")
+        elif new_x < old_x:
+            maze.move("left")
+        elif new_x > old_x:
+            maze.move("right")
 
-        maze.move(direction)
-
-        if maze.has_won():
-            clear_and_print_maze(maze, "overjoyed")
-            return True
-
-        if traverse_maze(maze):
-            return True
-        else:
-            maze.backtrack(direction)
-            clear_and_print_maze(maze, "sad")
-            sleep(0.03)
-
-    return False
+    clear_and_print_maze(maze, "overjoyed")
+    return True

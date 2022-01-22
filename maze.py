@@ -1,75 +1,60 @@
 from tile import Tile
 
 
-def get_opposite_direction(direction):
-    if direction == "up":
-        return "down"
-    elif direction == "down":
-        return "up"
-    elif direction == "left":
-        return "right"
-    elif direction == "right":
-        return "left"
-
-
 class Maze:
     def __init__(self, path):
+        self.__player = (0, 0)
+        self.__maze = []
 
         f = open(path, "r")
         csv = f.read()
+        lines = csv.split("\n")
 
-        self.maze = []
-
-        for line in csv.split("\n"):
+        for y in range(len(lines)):
             maze_line = []
-            for tile in line.split(","):
-                maze_line.append(Tile(int(tile)))
-            self.maze.append(maze_line)
+            line = lines[y]
+            tiles = line.split(",")
 
-        self.player = [0, 0]
-        self.maze[0][0].set_is_visited(True)
-        self.maze[0][0].set_is_path(True)
+            for x in range(len(tiles)):
+                tile = tiles[x]
+                maze_line.append(Tile(x, y, int(tile)))
 
-    def display(self, mood="happy"):
+            self.__maze.append(maze_line)
 
-        output = "██" * (len(self.maze[0]) + 2) + "\n"
+        self.__maze[0][0].set_is_path(True)
 
-        for y in range(len(self.maze)):
-            line_display = ""
+    def get_player_coordinates(self):
+        return self.__player
 
-            for x in range(len(self.maze[y])):
-                tile = self.maze[y][x]
+    def get_player_tile(self):
+        x, y = self.__player
+        return self.get_tile(x, y)
 
-                if self.player == [x, y]:
-                    if mood == "sad":
-                        line_display += ":("
-                    elif mood == "overjoyed":
-                        line_display += ":D"
-                    else:
-                        line_display += ":)"
-                elif tile.is_path:
-                    line_display += "░░"
-                elif tile.is_visited:
-                    line_display += "▓▓"
-                elif tile.is_empty():
-                    line_display += "  "
-                elif tile.is_wall():
-                    line_display += "██"
-                elif tile.is_goal():
-                    line_display += "!!"
+    def get_tile(self, x, y):
+        return self.__maze[y][x]
 
-            output += "██" + line_display + "██\n"
+    def get_all_tiles(self):
+        return [tile for line in self.__maze for tile in line]
 
-        output += "██" * (len(self.maze[0]) + 2)
-        return output
+    def get_player_adjacent_tiles(self):
+        x, y = self.__player
+        return self.get_adjacent_tiles(x, y)
 
-    def look(self, direction):
-        new_x, new_y = self.__get_new_coordinates(direction)
+    def get_adjacent_tiles(self, x, y):
+        coordinates = [(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)]
 
-        if new_x is None or new_y is None:
-            return None
+        tiles = []
+        for (x, y) in coordinates:
 
-        return self.maze[new_y][new_x]
+            if 0 <= x < len(self.__maze[0]) and 0 <= y < len(self.__maze):
+                tile = self.__maze[y][x]
+                tiles.append(tile)
+
+        return tiles
+
+    def get_has_won(self):
+        x, y = self.__player
+        return self.__maze[y][x].get_is_goal()
 
     def move(self, direction):
         new_x, new_y = self.__get_new_coordinates(direction)
@@ -77,32 +62,47 @@ class Maze:
         if new_x is None or new_y is None:
             return False
 
-        destination = self.maze[new_y][new_x]
-        if not destination.is_wall():
-            self.player = [new_x, new_y]
-            destination.set_is_visited(True)
+        destination = self.__maze[new_y][new_x]
+        if not destination.get_is_wall():
+            self.__player = (new_x, new_y)
             destination.set_is_path(True)
             return True
 
         return False
 
-    def backtrack(self, direction):
-        opposite_direction = get_opposite_direction(direction)
+    def display(self, mood="happy"):
 
-        new_x, new_y = self.__get_new_coordinates(opposite_direction)
+        output = "██" * (len(self.__maze[0]) + 2) + "\n"
 
-        origin = self.maze[self.player[1]][self.player[0]]
-        destination = self.maze[new_y][new_x]
-        if not destination.is_wall():
-            self.player = [new_x, new_y]
-            origin.set_is_path(False)
-            return True
+        for y in range(len(self.__maze)):
+            line_display = ""
 
-        return False
+            for x in range(len(self.__maze[y])):
+                tile = self.__maze[y][x]
+
+                if self.__player == (x, y):
+                    if mood == "sad":
+                        line_display += ":("
+                    elif mood == "overjoyed":
+                        line_display += ":D"
+                    else:
+                        line_display += ":)"
+                elif tile.get_is_path():
+                    line_display += "░░"
+                elif tile.get_is_empty():
+                    line_display += "  "
+                elif tile.get_is_wall():
+                    line_display += "██"
+                elif tile.get_is_goal():
+                    line_display += "##"
+
+            output += "██" + line_display + "██\n"
+
+        output += "██" * (len(self.__maze[0]) + 2)
+        return output
 
     def __get_new_coordinates(self, direction):
-        new_x = self.player[0]
-        new_y = self.player[1]
+        new_x, new_y = self.__player
 
         if direction == "up":
             new_y -= 1
@@ -113,10 +113,7 @@ class Maze:
         elif direction == "right":
             new_x += 1
 
-        if new_x < 0 or new_x >= len(self.maze[0]) or new_y < 0 or new_y >= len(self.maze):
+        if new_x < 0 or new_x >= len(self.__maze[0]) or new_y < 0 or new_y >= len(self.__maze):
             return None, None
 
         return new_x, new_y
-
-    def has_won(self):
-        return self.maze[self.player[1]][self.player[0]].is_goal()
